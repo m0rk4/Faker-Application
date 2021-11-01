@@ -11,6 +11,15 @@ namespace Core.Services.Implementations
 {
     public class Faker : IFaker
     {
+        private readonly Comparison<ConstructorInfo> _constructorComparator = (firstConstructor, secondConstructor) =>
+        {
+            if (secondConstructor.IsPublic && firstConstructor.IsPrivate) return 1;
+
+            if (secondConstructor.IsPrivate && firstConstructor.IsPublic) return -1;
+
+            return secondConstructor.GetParameters().Length - firstConstructor.GetParameters().Length;
+        };
+
         private readonly IEnumerable<IValueGenerator> _generators;
         private readonly HashSet<Type> _usedTypes = new();
 
@@ -82,11 +91,10 @@ namespace Core.Services.Implementations
 
         private IEnumerable<ConstructorInfo> GetTypeConstructors(Type type)
         {
-            // constructors -> list -> sort by parameters count 5parm 4 3 2
-            return type.GetConstructors()
+            // constructors -> list -> sort by parameters count & publicity 
+            return type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                 .ToImmutableList()
-                .Sort((firstConstructor, secondConstructor) =>
-                    secondConstructor.GetParameters().Length - firstConstructor.GetParameters().Length);
+                .Sort(_constructorComparator);
         }
 
         private object InstantiateObject(Type type, IEnumerable<ConstructorInfo> constructors)
